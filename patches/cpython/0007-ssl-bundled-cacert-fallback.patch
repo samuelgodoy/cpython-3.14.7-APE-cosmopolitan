@@ -1,0 +1,22 @@
+--- a/Lib/ssl.py
++++ b/Lib/ssl.py
+@@ -720,6 +720,19 @@
+         # CERT_OPTIONAL or CERT_REQUIRED. Let's try to load default system
+         # root CA certificates for the given purpose. This may fail silently.
+         context.load_default_certs(purpose)
++        # cosmocc/Cosmopolitan APE: this build's OpenSSL has no meaningful
++        # --openssldir on the machine actually running it (there was no
++        # such path at build time either - see BUILD.md), so
++        # load_default_certs() above has nothing to find. Fall back to the
++        # Mozilla CA bundle we embed in the zip alongside the stdlib.
++        # load_verify_locations() is additive, so this only adds trust
++        # anchors on top of whatever load_default_certs() already found.
++        _bundled_cacert = os.path.join(os.path.dirname(__file__), '_cosmo_cacert.pem')
++        if os.path.exists(_bundled_cacert):
++            try:
++                context.load_verify_locations(_bundled_cacert)
++            except SSLError:
++                pass
+     # OpenSSL 1.1.1 keylog file
+     if hasattr(context, 'keylog_filename'):
+         keylogfile = os.environ.get('SSLKEYLOGFILE')

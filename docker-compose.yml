@@ -1,0 +1,82 @@
+# cpython-cosmo: build and test CPython as a single Cosmopolitan APE binary.
+#
+#   docker compose build                         # builder image (once, and after deps/ changes)
+#   docker compose run --rm build                # -> .bin/python-3.14.7-release.com
+#   docker compose run --rm test                 # test suite, Linux x86_64
+#   docker compose run --rm test-arm64           # test suite, Linux aarch64 (QEMU)
+#   docker compose run --rm audit [test_os ...]  # CPython's own tests, as an audit
+#
+# .bin/ only ever receives the finished binary, and only after it passed the
+# test suite. Logs, BUILD-INFO.txt and SHA256SUMS go to logs/.
+
+name: cpython-cosmo
+
+x-cpython: &cpython
+  CPYTHON_REPO: https://github.com/python/cpython.git
+  CPYTHON_REF: v3.14.7
+  # What CPYTHON_REF must resolve to; the build refuses anything else.
+  CPYTHON_COMMIT: 823f0323ee6ec1402088b73bce1a38473cac36dc
+
+x-builder: &builder
+  image: cpython-cosmo-builder:3.14.7
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+
+x-test: &test
+  profiles: [test]
+  working_dir: /work
+  entrypoint: ["bash", "/work/scripts/test-in-container.sh"]
+  volumes:
+    - ./.bin:/work/.bin:ro
+    - ./scripts:/work/scripts:ro
+    - ./tests:/work/tests:ro
+    - ./logs:/work/logs
+
+services:
+  build:
+    <<: *builder
+    environment: *cpython
+    volumes:
+      # Host-authored inputs, read-only.
+      - ./patches/cpython:/work/patches/cpython:ro
+      - ./modules:/work/modules:ro
+      - ./scripts:/work/scripts:ro
+      - ./tests:/work/tests:ro
+      # Outputs.
+      - ./.bin:/work/.bin
+      - ./logs:/work/logs
+      # The CPython checkout and build tree stay in Docker volumes, inside
+      # the Docker VM: heavy compile I/O through a Windows bind mount is slow
+      # and was unstable (WSL vsock errors). Both are recreated every build.
+      - cpython-src:/work/src
+      - cpython-build:/work/build
+
+  test:
+    <<: *test
+    image: cpython-cosmo-builder:3.14.7
+    environment:
+      TEST_TARGET: linux-amd64
+
+  test-arm64:
+    <<: *test
+    # ubuntu:22.04, pinned by digest; Docker runs it under QEMU on x86 hosts.
+    image: ubuntu@sha256:b8b6ee6aa931ecd9d0d952abc34dc0e5f7c6a30c6bb71b079fe399fde0329c02
+    platform: linux/arm64
+    environment:
+      TEST_TARGET: linux-arm64
+
+  audit:
+    <<: *builder
+    profiles: [audit]
+    entrypoint: ["/work/scripts/audit-cpython-tests.sh"]
+    volumes:
+      - ./.bin:/work/.bin:ro
+      - ./scripts:/work/scripts:ro
+      - ./logs:/work/logs
+      # CPython's test package comes from the checkout of the last build.
+      - cpython-src:/work/src:ro
+
+volumes:
+  cpython-src:
+  cpython-build:

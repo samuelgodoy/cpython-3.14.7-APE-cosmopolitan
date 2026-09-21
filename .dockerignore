@@ -1,0 +1,7 @@
+# Allowlist: the image only needs the dependency scripts and the patches
+# they apply. Everything else (outputs, logs, the Git history, local
+# toolchain copies) stays out of the build context.
+*
+!deps/
+!patches/psycopg-c/
+!patches/cosmopolitan/

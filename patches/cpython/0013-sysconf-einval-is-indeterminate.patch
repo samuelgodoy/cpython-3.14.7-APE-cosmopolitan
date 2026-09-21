@@ -1,0 +1,25 @@
+--- a/Modules/posixmodule.c
++++ b/Modules/posixmodule.c
+@@ -14653,6 +14653,22 @@
+ 
+     errno = 0;
+     value = sysconf(name);
++#ifdef __COSMOPOLITAN__
++    /* cosmocc/Cosmopolitan APE: sysconf() sets errno to EINVAL for names
++     * it recognizes but cannot answer (e.g. _SC_SEM_NSEMS_MAX), where
++     * glibc returns -1 and leaves errno untouched to mean "indeterminate,
++     * limited only by available resources". CPython then raises OSError
++     * where every caller expects the -1 sentinel - which breaks code that
++     * is perfectly correct on other platforms (concurrent.futures'
++     * _check_system_limits and multiprocessing's own test suite both hit
++     * this). conv_confname() has already validated `name` against
++     * CPython's own table before we get here, so EINVAL at this point
++     * cannot mean "bad name" - it can only mean "this libc has no answer",
++     * which is exactly the indeterminate case. Normalize to the glibc
++     * behaviour callers are written against. */
++    if (value == -1 && errno == EINVAL)
++        errno = 0;
++#endif
+     if (value == -1 && errno != 0)
+         posix_error();
+     return value;

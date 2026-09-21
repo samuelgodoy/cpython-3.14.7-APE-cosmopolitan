@@ -1,0 +1,22 @@
+--- a/Lib/multiprocessing/managers.py
++++ b/Lib/multiprocessing/managers.py
+@@ -503,6 +503,19 @@
+                  ctx=None, *, shutdown_timeout=1.0):
+         if authkey is None:
+             authkey = process.current_process().authkey
++        if address is None:
++            # cosmocc/Cosmopolitan APE: Listener's default_family resolves
++            # to 'AF_UNIX' here (hasattr(socket, 'AF_UNIX') is True even
++            # though it's built by cosmocc), but AF_UNIX rendezvous sockets
++            # are unreliable under Cosmopolitan - especially on real
++            # Windows, where Manager() used to fail with EOFError/
++            # "Operation not supported" (see BUILD.md - same root cause
++            # documented for multiprocessing's forkserver start method).
++            # Manager's protocol never needs AF_UNIX-specific features like
++            # fd-passing (unlike forkserver), so a loopback AF_INET address
++            # is a safe, always-available substitute on every OS this binary
++            # runs on.
++            address = ('127.0.0.1', 0)
+         self._address = address     # XXX not final address if eg ('', 0)
+         self._authkey = process.AuthenticationString(authkey)
+         self._state = State()

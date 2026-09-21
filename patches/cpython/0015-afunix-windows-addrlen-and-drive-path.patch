@@ -1,0 +1,62 @@
+--- a/Modules/socketmodule.c
++++ b/Modules/socketmodule.c
+@@ -106,6 +106,11 @@
+ #endif
+ 
+ #include "Python.h"
++#ifdef __COSMOPOLITAN__
++#  define _COSMO_SOURCE
++#  include <libc/dce.h>           // IsWindows()
++#  include <ctype.h>              // isalpha()
++#endif
+ #include "pycore_capsule.h"       // _PyCapsule_SetTraverse()
+ #include "pycore_fileutils.h"     // _Py_set_inheritable()
+ #include "pycore_moduleobject.h"  // _PyModule_GetState
+@@ -1909,11 +1914,47 @@
+             }
+             addr->sun_path[path.len] = 0;
+ 
++#ifdef __COSMOPOLITAN__
++            /* cosmocc/Cosmopolitan APE: bind()/connect() reject the
++             * POSIX-idiomatic length below. Confirmed in Cosmopolitan's
++             * sockaddr2bsd.c, which reads the path with
++             * strnlen(sun_path, addrlen - famsize) - so the length caps
++             * how much of the path is seen, and identical binds succeed
++             * with sizeof(sockaddr_un) while failing with
++             * offsetof+len+1. That is what made short paths look "too
++             * short"; the path was never the issue. */
++            *len_ret = sizeof(struct sockaddr_un);
++#else
+             /* including the tailing NUL */
+             *len_ret = path.len + offsetof(struct sockaddr_un, sun_path) + 1;
++#endif
+         }
+         addr->sun_family = s->sock_family;
+         memcpy(addr->sun_path, path.buf, path.len);
++#ifdef __COSMOPOLITAN__
++        /* Cosmopolitan exposes Windows drives as /C/..., but its AF_UNIX
++         * translation copies sun_path verbatim (sockaddr2bsd.c does a
++         * plain memcpy with no path conversion), so Windows never sees a
++         * path it understands: binding /C/Users/... fails with
++         * WSAENETDOWN while the native C:/Users/... succeeds. Rewrite the
++         * drive prefix in place - both forms are the same length, so this
++         * needs no extra room and cannot truncate.
++         *
++         * Must run AFTER the memcpy above, which is what actually fills
++         * sun_path; doing it inside the branch that computes len_ret
++         * reads a still-zeroed buffer and silently does nothing.
++         *
++         * Guarded by IsWindows() at runtime: /C/... is an ordinary path
++         * on Linux and must be left alone. */
++        if (IsWindows() && s->sock_family == AF_UNIX &&
++            path.len >= 3 &&
++            addr->sun_path[0] == '/' &&
++            isalpha((unsigned char)addr->sun_path[1]) &&
++            addr->sun_path[2] == '/') {
++            addr->sun_path[0] = addr->sun_path[1];
++            addr->sun_path[1] = ':';
++        }
++#endif
+ 
+         retval = 1;
+     unix_out:

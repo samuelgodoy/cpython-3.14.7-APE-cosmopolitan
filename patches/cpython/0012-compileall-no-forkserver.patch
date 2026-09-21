@@ -1,0 +1,22 @@
+--- a/Lib/compileall.py
++++ b/Lib/compileall.py
+@@ -98,10 +98,15 @@
+     success = True
+     if workers != 1 and ProcessPoolExecutor is not None:
+         import multiprocessing
+-        if multiprocessing.get_start_method() == 'fork':
+-            mp_context = multiprocessing.get_context('forkserver')
+-        else:
+-            mp_context = None
++        # cosmocc/Cosmopolitan APE: upstream switches to 'forkserver' when
++        # the default start method is 'fork', because fork()ing a process
++        # that has already imported much of the stdlib is risky in general.
++        # Here that trade is inverted: 'fork' is this build's deliberate,
++        # verified-working default (patch 0006), while 'forkserver' hangs -
++        # its workers spin up fine but never receive dispatched tasks (see
++        # BUILD.md, "ProcessPoolExecutor and compileall"). Keeping the
++        # default context means this falls back to plain fork, which works.
++        mp_context = None
+         # If workers == 0, let ProcessPoolExecutor choose
+         workers = workers or None
+         with ProcessPoolExecutor(max_workers=workers,

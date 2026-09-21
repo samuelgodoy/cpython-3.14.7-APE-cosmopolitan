@@ -1,0 +1,18 @@
+# Everything here runs inside Linux containers or is fed to `git apply` /
+# `patch`. A Windows checkout with core.autocrlf=true would rewrite these to
+# CRLF, which breaks shebangs ("bad interpreter: /bin/bash^M") and makes
+# patches fail to apply. Pin them to LF regardless of platform or config.
+*.sh        text eol=lf
+*.py        text eol=lf
+*.c         text eol=lf
+*.h         text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.txt       text eol=lf
+Dockerfile  text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.dockerignore   text eol=lf
+
+# Patches must reach git apply / patch byte-for-byte.
+*.patch     -text

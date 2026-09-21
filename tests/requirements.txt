@@ -1,0 +1,9 @@
+# Extra packages installed only by the containerised test runs
+# (scripts/test-in-container.sh), never shipped in the binary.
+# Pinned by version and hash; pip runs with --require-hashes --no-deps, so
+# every runtime dependency must be listed here explicitly.
+joblib==1.6.0 \
+    --hash=sha256:3dbbf9f6e4b592a2357b854608e980fe6390d131d7a82f011a377ef2ebef7aba
+# joblib's only runtime dependency (Requires-Dist: cloudpickle>=3.0)
+cloudpickle==3.1.2 \
+    --hash=sha256:9acb47f6afd73f60dc1df93bb801b472f05ff42fa6c84167d25cb206be1fbf4a

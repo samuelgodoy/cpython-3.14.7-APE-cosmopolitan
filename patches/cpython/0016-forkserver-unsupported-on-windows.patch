@@ -1,0 +1,28 @@
+--- a/Lib/multiprocessing/context.py
++++ b/Lib/multiprocessing/context.py
+@@ -319,6 +319,25 @@
+         def _check_available(self):
+             if not reduction.HAVE_SEND_HANDLE:
+                 raise ValueError('forkserver start method not available')
++            # cosmocc/Cosmopolitan APE: forkserver hands each new worker its
++            # pipes and semaphores over an AF_UNIX socket as SCM_RIGHTS
++            # ancillary data. Windows' AF_UNIX has no SCM_RIGHTS, so the
++            # server's recvmsg() fails with EINVAL and the parent sees only
++            # an opaque traceback from the helper. Say why, up front. On
++            # Linux this works (Cosmopolitan's sem_open is overridden - see
++            # libc-overrides/sem_open.c), and 'spawn' works everywhere.
++            try:
++                import _cosmo
++                on_windows = _cosmo.host_os() == 'windows'
++            except ImportError:
++                on_windows = False
++            if on_windows:
++                raise ValueError(
++                    "the 'forkserver' start method is not supported on "
++                    "Windows by this Cosmopolitan (cosmocc) build: it passes "
++                    "file descriptors over AF_UNIX (SCM_RIGHTS), which "
++                    "Windows does not support. Use 'fork' (the default) or "
++                    "'spawn' instead.")
+ 
+     _concrete_contexts = {
+         'fork': ForkContext(),

@@ -1,0 +1,33 @@
+--- a/Lib/socket.py
++++ b/Lib/socket.py
+@@ -662,13 +662,25 @@
+ if hasattr(_socket, "socketpair"):
+     def socketpair(family=None, type=SOCK_STREAM, proto=0):
+         if family is None:
+             try:
+                 family = AF_UNIX
+             except NameError:
+                 family = AF_INET
+-        a, b = _socket.socketpair(family, type, proto)
+-        a = socket(family, type, proto, a.detach())
+-        b = socket(family, type, proto, b.detach())
+-        return a, b
++        try:
++            a, b = _socket.socketpair(family, type, proto)
++            a = socket(family, type, proto, a.detach())
++            b = socket(family, type, proto, b.detach())
++            return a, b
++        except OSError:
++            # cosmocc/Cosmopolitan APE: the native socketpair() symbol
++            # exists (this build is a POSIX ./configure build), but on a
++            # real Windows host AF_UNIX socketpair() can fail at runtime
++            # (e.g. errno EBADF) even though it's present at compile time.
++            # Fall back to the portable loopback-TCP implementation that
++            # stock CPython already ships for platforms without a native
++            # socketpair() at all. That fallback only understands
++            # AF_INET/AF_INET6, so force AF_INET rather than passing
++            # through AF_UNIX.
++            return _fallback_socketpair(AF_INET, type, proto)
+ 
+ else:
+     socketpair = _fallback_socketpair

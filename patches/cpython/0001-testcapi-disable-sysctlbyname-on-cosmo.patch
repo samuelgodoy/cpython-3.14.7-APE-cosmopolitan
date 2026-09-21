@@ -1,0 +1,20 @@
+--- a/Modules/_testcapimodule.c
++++ b/Modules/_testcapimodule.c
+@@ -2572,7 +2572,7 @@
+ }
+
+
+-#ifdef HAVE_SYSCTLBYNAME
++#if defined(HAVE_SYSCTLBYNAME) && !defined(__COSMOPOLITAN__)
+ static PyObject*
+ uptime_bsd(PyObject *Py_UNUSED(self), PyObject *Py_UNUSED(args))
+ {
+@@ -2691,7 +2691,7 @@
+     {"test_atexit", test_atexit, METH_NOARGS},
+     {"code_offset_to_line", _PyCFunction_CAST(code_offset_to_line), METH_FASTCALL},
+     {"toggle_reftrace_printer", toggle_reftrace_printer, METH_O},
+-#ifdef HAVE_SYSCTLBYNAME
++#if defined(HAVE_SYSCTLBYNAME) && !defined(__COSMOPOLITAN__)
+     {"uptime_bsd", uptime_bsd, METH_NOARGS},
+ #endif
+     {NULL, NULL} /* sentinel */

@@ -1,0 +1,34 @@
+--- a/Lib/multiprocessing/heap.py
++++ b/Lib/multiprocessing/heap.py
+@@ -92,9 +92,28 @@
+             # Choose a non-storage backed directory if possible,
+             # to improve performance
+             for d in self._dir_candidates:
+-                st = os.statvfs(d)
+-                if st.f_bavail * st.f_frsize >= size:  # enough free space?
+-                    return d
++                # cosmocc/Cosmopolitan APE: sys.platform == 'linux' always
++                # (see BUILD.md), so '/dev/shm' is always a candidate here,
++                # but this build's synthetic /dev is unreliable for it:
++                # os.statvfs('/dev/shm') can report bogus-but-successful
++                # stats even though the path can't actually hold files
++                # (real Linux guarantees /dev/shm is a working tmpfs mount,
++                # which is why upstream never double-checks this). Probe
++                # with a real file create/delete, not just statvfs, and
++                # skip the candidate on any failure rather than crash -
++                # this is purely a performance hint, util.get_temp_dir()
++                # below is a perfectly correct fallback.
++                try:
++                    st = os.statvfs(d)
++                    if st.f_bavail * st.f_frsize < size:
++                        continue
++                    probe_fd, probe_path = tempfile.mkstemp(
++                        prefix='pym-probe-', dir=d)
++                    os.close(probe_fd)
++                    os.unlink(probe_path)
++                except OSError:
++                    continue
++                return d
+             return util.get_temp_dir()
+ 
+     def reduce_arena(a):

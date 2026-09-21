@@ -1,0 +1,27 @@
+--- a/Lib/multiprocessing/context.py
++++ b/Lib/multiprocessing/context.py
+@@ -328,10 +328,22 @@
+     # bpo-33725: running arbitrary code after fork() is no longer reliable
+     # on macOS since macOS 10.14 (Mojave). Use spawn by default instead.
+     # gh-84559: We changed everyones default to a thread safeish one in 3.14.
+-    if reduction.HAVE_SEND_HANDLE and sys.platform != 'darwin':
++    #
++    # cosmocc/Cosmopolitan APE: neither 'forkserver' nor 'spawn' work
++    # correctly on this build - both rely on a *named* semaphore being
++    # reconnected by name (sem_open(name, 0)) in a freshly spawn()'d
++    # process, and that reconnect silently produces a semaphore that's
++    # disconnected from the parent's (acquire() always times out; root
++    # cause not fully understood, see BUILD.md). 'fork' sidesteps this
++    # entirely - the child inherits the semaphore's shared memory directly
++    # via normal fork() semantics, no reconnect-by-name involved - and is
++    # verified working (Lock/Queue/Pool) on both Windows and Linux here.
++    # forkserver additionally fails outright on Windows for an unrelated
++    # reason (its persistent AF_UNIX rendezvous socket: "Network is down").
++    if False and reduction.HAVE_SEND_HANDLE and sys.platform != 'darwin':
+         _default_context = DefaultContext(_concrete_contexts['forkserver'])
+     else:
+-        _default_context = DefaultContext(_concrete_contexts['spawn'])
++        _default_context = DefaultContext(_concrete_contexts['fork'])
+ 
+ else:  # Windows
+ 

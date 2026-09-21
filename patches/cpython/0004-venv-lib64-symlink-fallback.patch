@@ -1,0 +1,20 @@
+--- a/Lib/venv/__init__.py
++++ b/Lib/venv/__init__.py
+@@ -194,7 +194,16 @@
+         # Issue 21197: create lib64 as a symlink to lib on 64-bit non-OS X POSIX
+         if ((sys.maxsize > 2**32) and (os.name == 'posix') and
+             (sys.platform != 'darwin')):
+             link_path = os.path.join(env_dir, 'lib64')
+             if not os.path.exists(link_path):   # Issue #21643
+-                os.symlink('lib', link_path)
++                try:
++                    os.symlink('lib', link_path)
++                except OSError:
++                    # cosmocc/Cosmopolitan APE binaries report os.name ==
++                    # 'posix' even when actually running on Windows (this
++                    # is deliberate, see BUILD.md), where unprivileged
++                    # symlink creation fails without Developer Mode. lib64
++                    # is a convenience compat symlink, not load-bearing -
++                    # skip it rather than aborting venv creation.
++                    pass
+         context.bin_path = binpath

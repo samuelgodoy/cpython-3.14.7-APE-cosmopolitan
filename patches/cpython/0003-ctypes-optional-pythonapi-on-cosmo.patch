@@ -1,0 +1,20 @@
+--- a/Lib/ctypes/__init__.py
++++ b/Lib/ctypes/__init__.py
+@@ -563,7 +563,16 @@
+     # These are Unix-like platforms which use a dynamically-linked libpython.
+     pythonapi = PyDLL(_sysconfig.get_config_var("LDLIBRARY"))
+ else:
+-    pythonapi = PyDLL(None)
++    try:
++        pythonapi = PyDLL(None)
++    except OSError:
++        # cosmocc/Cosmopolitan APE binaries are fully statically linked and
++        # don't support dlopen(NULL) (there's no dynamic symbol table for
++        # the running executable itself to hand back a handle to). Data
++        # types (c_int, Structure, sizeof, ...) still work fine; only
++        # looking up already-linked CPython C API symbols through
++        # ctypes.pythonapi is unavailable.
++        pythonapi = None
+ 
+ 
+ if _os.name == "nt":

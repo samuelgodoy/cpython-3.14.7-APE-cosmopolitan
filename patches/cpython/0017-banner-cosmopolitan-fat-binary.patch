@@ -1,0 +1,61 @@
+--- a/Modules/main.c
++++ b/Modules/main.c
+@@ -188,6 +188,40 @@
+ }
+ 
+ 
++#ifdef __COSMOPOLITAN__
++#  define _COSMO_SOURCE
++#  include <libc/dce.h>           // IsWindows() and friends
++
++/* The platform the banner names. The stock banner prints Py_GetPlatform(),
++ * a compile-time constant - which on this build is always "linux", because
++ * one POSIX-personality binary runs everywhere (see BUILD.md). That constant
++ * can't change: sys.platform is derived from it and selects which OS
++ * modules importlib loads, and reporting "win32" there stops the
++ * interpreter from starting. The banner is only text, though, so it can
++ * name the OS actually running this process, spelled the way a native
++ * CPython on that OS would spell it. sys.platform is untouched. */
++static const char *
++cosmo_banner_platform(void)
++{
++    if (IsWindows()) {
++        return "win32";
++    }
++    if (IsXnu()) {
++        return "darwin";
++    }
++    if (IsFreebsd()) {
++        return "freebsd";
++    }
++    if (IsOpenbsd()) {
++        return "openbsd";
++    }
++    if (IsNetbsd()) {
++        return "netbsd";
++    }
++    return Py_GetPlatform();
++}
++#endif
++
+ static void
+ pymain_header(const PyConfig *config)
+ {
+@@ -199,7 +233,17 @@
+         return;
+     }
+ 
++#ifdef __COSMOPOLITAN__
++    fprintf(stderr, "Python %s on %s\n", Py_GetVersion(),
++            cosmo_banner_platform());
++    /* Says how this interpreter was built: one Actually Portable
++     * Executable carrying both x86_64 and aarch64 code, runnable as-is on
++     * Windows, Linux, macOS and the BSDs. Suppressed by -q along with the
++     * rest of the banner. */
++    fprintf(stderr, "Cosmopolitan Fat Binary (APE)\n");
++#else
+     fprintf(stderr, "Python %s on %s\n", Py_GetVersion(), Py_GetPlatform());
++#endif
+     if (config->site_import) {
+         fprintf(stderr, "%s\n", COPYRIGHT);
+     }
