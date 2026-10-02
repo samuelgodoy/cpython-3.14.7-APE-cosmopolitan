@@ -27,7 +27,9 @@ ctypes, tzdata, pip...) is listed in **[FEATURES.md](FEATURES.md)**.
 ./python-3.14.7-release.com                  # REPL
 ./python-3.14.7-release.com script.py        # run a script
 ./python-3.14.7-release.com -m http.server   # stdlib modules as usual
-./python-3.14.7-release.com -m pip install requests
+# The internal zip filesystem is read-only; install packages to a host directory:
+./python-3.14.7-release.com -m pip install --target ./packages requests
+PYTHONPATH=./packages ./python-3.14.7-release.com -c "import requests; print(requests.__version__)"
 ```
 
 On Windows it runs from PowerShell, cmd or Git Bash. The file name does
@@ -51,9 +53,14 @@ Windows should run it.
   `256`, and Git Bash reads `0`). Inside Python (`subprocess`) they are
   correct. If a shell or CI must read the code, end the script with
   `cosmo.exit(code)`.
-- **pip installs pure-Python packages only.** A single static APE cannot
-  load `.so`/`.pyd` files, so packages with C extensions (numpy, pandas,
-  cryptography...) cannot work.
+- **pip targets an internal read-only filesystem by default.**
+  CPython resolves its standard library and default \site-packages\ inside an
+  embedded, read-only zip filesystem bundled directly into the executable. Because
+  this internal filesystem cannot be written to at runtime, \pip install\ without
+  flags will fail. Always install pure-Python packages to an external host folder
+  using \--target\ (e.g. \./python-3.14.7-release.com -m pip install --target ./packages <pkg>\)
+  and load them via \PYTHONPATH\. Additionally, static APEs cannot load dynamic
+  \.so\/\.pyd\ extensions, so packages with native C extensions will not work.
 
 The full list of limitations, and what each one's workaround costs, is in
 [docs/ERRORS.md](docs/ERRORS.md) and [docs/WORKAROUNDS.md](docs/WORKAROUNDS.md).
